@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from clinicalcompress.models import ProtectedSpan
+from clinicalcompress.protect import protect
 
 # Boilerplate/filler phrases that carry no clinical meaning and are safe
 # to drop outright when they appear outside protected spans. Extend this
@@ -240,19 +241,22 @@ def compress_deterministic(
     working = _collapse_whitespace(text)
     trace.removed_whitespace = working != text.strip()
 
-    # Re-detect span offsets are only valid against the ORIGINAL text, so
-    # sentence-level operations below re-derive overlap against `working`
-    # using the same relative text content (protect() offsets assume the
-    # original text). To keep guarantees simple and correct, sentence-level
-    # pruning operates on `working` but re-checks span containment via the
-    # substring text of each span (a span's exact text must still appear).
-    # `_remove_filler_words` runs first, while `working` is still closest to
-    # the original text (only whitespace-collapsed), so `protected_spans`
-    # offsets remain accurate for its overlap checks.
-    working = _remove_filler_words(working, protected_spans, trace)
-    working = _remove_filler_phrases(working, protected_spans, trace)
-    working = _remove_duplicate_sentences(working, protected_spans, trace)
-    working = _prune_low_information_sentences(working, protected_spans, target_reduction, trace)
+    # `protected_spans` holds offsets relative to the ORIGINAL `text`. Every
+    # transformation below (filler-word removal, filler-phrase removal,
+    # duplicate-sentence removal, low-information-sentence pruning) changes
+    # the length and content of `working`, which immediately invalidates
+    # those offsets for any later step. Using stale offsets to decide
+    # whether a sentence "overlaps a protected span" can silently misjudge
+    # a sentence that actually contains a value/negation/allergy as
+    # droppable, permanently losing protected content. To keep every step
+    # correct, we re-run `protect()` on `working` immediately before each
+    # overlap-sensitive step so offsets always match the text being
+    # operated on. `protect()` is pure and deterministic, so re-running it
+    # is safe and just as authoritative as the original detection.
+    working = _remove_filler_words(working, protect(working), trace)
+    working = _remove_filler_phrases(working, protect(working), trace)
+    working = _remove_duplicate_sentences(working, protect(working), trace)
+    working = _prune_low_information_sentences(working, protect(working), target_reduction, trace)
     working = _collapse_whitespace(working)
     return working, trace
 
