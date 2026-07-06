@@ -55,6 +55,43 @@ def test_dense_single_encounter_note_still_compresses():
         assert span.text in compressed, f"Protected span '{span.text}' was altered or dropped"
 
 
+def test_sentence_pruning_never_drops_a_value_after_earlier_mutation():
+    """Regression test: on a longer note, filler-word removal shrinks
+    `working` before sentence-level pruning runs. If sentence pruning
+    checks overlap using stale offsets (computed against the original,
+    unmutated text) instead of re-detecting spans on the current
+    `working` text, it can misjudge a sentence that genuinely contains a
+    protected value as droppable and silently discard it -- which then
+    fails `values_intact` in verify() and, under strict mode, wipes out
+    the entire compression gain. This must never happen."""
+    text = (
+        "Emergency Department admission note for an elderly patient with "
+        "multiple chronic conditions including COPD, heart failure, and "
+        "diabetes who presented after several days of worsening symptoms "
+        "at home despite following the usual home care routine carefully. "
+        "The patient normally ambulates independently with a walker but "
+        "today required assistance to get out of bed. Home pulse oximetry "
+        "reportedly showed oxygen saturations between 82% and 86% despite "
+        "her baseline oxygen therapy at home. She denies chest pain but "
+        "reports chest tightness associated with coughing today. No "
+        "hemoptysis. No recent travel. Mild bilateral lower extremity "
+        "swelling has increased over the past week at home."
+    )
+    spans = protect(text)
+    value_spans = [s for s in spans if s.category.value == "value"]
+    assert value_spans, "fixture must contain at least one detected value span"
+
+    compressed, _trace = compress_deterministic(text, spans, target_reduction=0.7)
+
+    for span in value_spans:
+        assert span.text in compressed, (
+            f"Protected value '{span.text}' was dropped by sentence-level "
+            "pruning due to stale offsets"
+        )
+    assert compressed != text
+    assert len(compressed) < len(text)
+
+
 def test_filler_words_removed_outside_protected_spans():
     text = "Patient presented with a history of HTN and T2DM."
     spans = protect(text)
