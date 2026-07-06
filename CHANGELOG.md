@@ -5,7 +5,26 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.0] - 2026-07-06
+## [0.1.1] - 2026-07-06
+
+  ### Fixed
+
+  - `compress_deterministic` re-detects protected spans against the
+    current (mutated) working text immediately before each overlap-
+    sensitive step (filler-word removal, filler-phrase removal,
+    duplicate-sentence removal, low-information-sentence pruning),
+    instead of reusing stale offsets computed against the original text.
+    Previously, on longer notes, earlier steps shrinking the text could
+    invalidate those offsets, causing a sentence that genuinely contained
+    a protected value (e.g. an oxygen saturation percentage) to be
+    misjudged as droppable. Combined with the orchestrator's strict
+    whole-text revert on any failed safety check, this could silently
+    collapse compression output to 0% reduction on dense notes.
+  - Removed `fastapi`, `uvicorn`, `pytest`, `pytest-cov`, `ruff`, and
+    `mypy` from core `dependencies`; they belong only in the `ui` and
+    `dev` optional extras and should not be required for a base install.
+
+  ## [0.1.0] - 2026-07-06
 
 ### Added
 
