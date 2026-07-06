@@ -1,0 +1,11 @@
+Patient: John Synthetic-Doe (fictional, for demonstration only). 64-year-old male presenting for cardiology follow-up.
+
+History of hypertension and type 2 diabetes. Denies chest pain, shortness of breath, palpitations, or syncope. No history of MI. No known drug allergies except penicillin.
+
+Vitals: BP 128/82, HR 76 bpm, RR 16, Temp 98.4 F, SpO2 98%.
+
+Left ventricular function stable on prior echo. Right femoral access site clean, dry, and intact from prior catheterization. No bruit noted bilaterally.
+
+Current medications: lisinopril 10 mg daily, metformin 500 mg twice daily, atorvastatin 20 mg nightly.
+
+Plan: continue current regimen, repeat lipid panel in 3 months, follow up in 6 months. Patient counseled on diet and exercise. As previously discussed, patient understands the importance of medication adherence.

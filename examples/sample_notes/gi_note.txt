@@ -1,0 +1,11 @@
+Patient: Maria Sample-Rivera (fictional, for demonstration only). 41-year-old female with new onset abdominal pain.
+
+Denies nausea, vomiting, or hematochezia. No history of prior GI surgery. Negative for melena. Allergic to shellfish.
+
+Vitals: BP 118/76, HR 82 bpm, Temp 99.1 F.
+
+Right lower quadrant tenderness on exam, no rebound or guarding. Bowel sounds active. Left upper quadrant unremarkable.
+
+Labs: WBC = 11.2, CRP = 14 mg/dL.
+
+Plan: obtain abdominal ultrasound, start on 500 mg naproxen as needed for pain, follow up in 1 week or sooner if symptoms worsen. Please be advised that this note is for demonstration purposes only.

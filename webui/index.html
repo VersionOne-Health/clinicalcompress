@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ClinicalCompress — compress clinical text without flipping a negation</title>
+<style>
+  :root {
+    --bg: #0b0e0d;
+    --panel: #121613;
+    --panel-2: #161b17;
+    --border: #263029;
+    --text: #d7e0da;
+    --muted: #8a978f;
+    --green: #3ddc84;
+    --red: #ff5c5c;
+    --amber: #f5b34d;
+    --accent: #62d6b0;
+    --negation: #ff8a8a;
+    --value: #62d6b0;
+    --allergy: #f5b34d;
+    --laterality: #8ab4ff;
+    --temporal: #d29bff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "SF Mono", "Fira Code", Menlo, Consolas, monospace;
+    line-height: 1.55;
+    padding-bottom: 60px;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px; }
+  header {
+    padding: 48px 0 28px;
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 { color: #fff; font-size: 26px; margin: 0 0 8px; }
+  header h1 .neg { color: var(--negation); }
+  header p { color: var(--muted); margin: 0; font-size: 14px; }
+
+  .controls {
+    display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end;
+    padding: 24px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  textarea {
+    width: 100%;
+    min-height: 110px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13.5px;
+    padding: 12px;
+    resize: vertical;
+  }
+  .slider-row { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
+  input[type="range"] { width: 180px; }
+  button {
+    background: var(--accent);
+    color: #06110c;
+    border: none;
+    font-weight: bold;
+    font-family: inherit;
+    padding: 10px 22px;
+    font-size: 13.5px;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+  }
+  button:hover { opacity: 0.9; }
+  button:disabled { opacity: 0.5; cursor: default; }
+
+  .panels {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    padding: 28px 0;
+  }
+  @media (max-width: 940px) { .panels { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    min-height: 260px;
+  }
+  .panel .head {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .panel .body {
+    padding: 16px;
+    font-size: 13.5px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    flex: 1;
+  }
+  .badge {
+    font-size: 10px;
+    font-weight: bold;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 2px;
+  }
+  .badge.safe { background: rgba(61, 220, 132, 0.15); color: var(--green); border: 1px solid var(--green); }
+  .badge.danger { background: rgba(255, 92, 92, 0.15); color: var(--red); border: 1px solid var(--red); }
+
+  mark.negation { background: transparent; color: var(--negation); font-weight: bold; border-bottom: 1px dashed var(--negation); }
+  mark.value { background: transparent; color: var(--value); font-weight: bold; border-bottom: 1px dashed var(--value); }
+  mark.allergy { background: transparent; color: var(--allergy); font-weight: bold; border-bottom: 1px dashed var(--allergy); }
+  mark.laterality { background: transparent; color: var(--laterality); font-weight: bold; border-bottom: 1px dashed var(--laterality); }
+  mark.temporal { background: transparent; color: var(--temporal); font-weight: bold; border-bottom: 1px dashed var(--temporal); }
+  mark.flipped { background: rgba(255, 92, 92, 0.2); color: var(--red); font-weight: bold; padding: 0 2px; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 12px; padding: 12px 16px; border-top: 1px solid var(--border); font-size: 11px; color: var(--muted); }
+  .legend span.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
+
+  .warning-box {
+    margin: 10px 16px 0;
+    padding: 8px 10px;
+    border: 1px solid var(--red);
+    background: rgba(255, 92, 92, 0.08);
+    color: var(--red);
+    font-size: 12px;
+    font-weight: bold;
+  }
+
+  .safety-report { margin-top: 10px; }
+  .safety-report .check { font-size: 12px; padding: 4px 0; color: var(--muted); }
+  .safety-report .check b.pass { color: var(--green); }
+  .safety-report .check b.fail { color: var(--red); }
+
+  .tokens-bar {
+    display: flex; gap: 24px; align-items: center;
+    padding: 18px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+    font-size: 13px; color: var(--muted); flex-wrap: wrap;
+  }
+  .tokens-bar b { color: #fff; }
+
+  footer { padding: 32px 0; color: var(--muted); font-size: 12px; }
+  footer a { color: var(--accent); }
+  footer .disclaimer { margin-top: 12px; font-size: 11.5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>ClinicalCompress — compress clinical text without flipping a <span class="neg">negation</span>.</h1>
+    <p>Real library, real verification. No account, no storage, no server-side state.</p>
+  </header>
+
+  <div class="controls">
+    <div style="flex: 1; min-width: 320px;">
+      <textarea id="input-text">57M with history of HTN and T2DM. Denies chest pain, shortness of breath, or fever. No known drug allergies except penicillin. BP 120/80. Left knee pain. Continue lisinopril 10 mg daily.</textarea>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:14px;">
+      <div class="slider-row">
+        <span>Reduction</span>
+        <input type="range" id="reduction" min="0.2" max="0.7" step="0.05" value="0.4" />
+        <span id="reduction-value">40%</span>
+      </div>
+      <button id="compress-btn">Compress</button>
+    </div>
+  </div>
+
+  <div class="tokens-bar" id="tokens-bar" style="display:none;">
+    <span>Original: <b id="tok-original">-</b> tokens</span>
+    <span>→</span>
+    <span>Compressed: <b id="tok-compressed">-</b> tokens</span>
+    <span>Reduction: <b id="tok-reduction">-</b>%</span>
+  </div>
+  <div class="disclaimer" id="reduction-note" style="display:none; margin-top:-8px; margin-bottom:16px;"></div>
+
+  <div class="panels">
+    <div class="panel">
+      <div class="head">1. Original <span id="original-count"></span></div>
+      <div class="body" id="panel-original">Click compress to see the result.</div>
+      <div class="legend">
+        <span><span class="dot" style="background:var(--negation)"></span>Negation</span>
+        <span><span class="dot" style="background:var(--value)"></span>Value</span>
+        <span><span class="dot" style="background:var(--allergy)"></span>Allergy</span>
+        <span><span class="dot" style="background:var(--laterality)"></span>Laterality</span>
+        <span><span class="dot" style="background:var(--temporal)"></span>Temporal</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="head">
+        2. Naive compression (unsafe baseline)
+        <span class="badge danger" id="naive-badge" style="display:none;">meaning reversed</span>
+      </div>
+      <div class="body" id="panel-naive">—</div>
+      <div class="warning-box" id="naive-warning" style="display:none;">meaning reversed — negation dropped</div>
+    </div>
+
+    <div class="panel">
+      <div class="head">
+        3. ClinicalCompress (safe)
+        <span class="badge safe" id="safe-badge" style="display:none;">meaning preserved</span>
+      </div>
+      <div class="body" id="panel-safe">—</div>
+      <div class="safety-report" id="safety-report"></div>
+    </div>
+  </div>
+
+  <footer>
+    <div><code>pip install clinicalcompress</code> &nbsp;·&nbsp;
+      <a href="https://github.com/VersionOne-Health/clinicalcompress" target="_blank" rel="noopener noreferrer">GitHub repository</a>
+      &nbsp;·&nbsp;
+      <a href="https://versionone.health" target="_blank" rel="noopener noreferrer">versionone.health</a>
+    </div>
+    <div class="disclaimer">
+      This is a demonstration UI for the clinicalcompress library, not a production service.
+      Not clinically validated. Not a medical device. All example text is synthetic.
+    </div>
+  </footer>
+</div>
+
+<script>
+  const reductionInput = document.getElementById("reduction");
+  const reductionValue = document.getElementById("reduction-value");
+  const compressBtn = document.getElementById("compress-btn");
+  const inputText = document.getElementById("input-text");
+
+  reductionInput.addEventListener("input", () => {
+    reductionValue.textContent = Math.round(parseFloat(reductionInput.value) * 100) + "%";
+  });
+
+  const CATEGORY_CLASS = {
+    negation: "negation",
+    value: "value",
+    allergy: "allergy",
+    laterality: "laterality",
+    temporal: "temporal",
+  };
+
+  function escapeHtml(str) {
+    return str.replace(/[&<>"']/g, (c) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+    }[c]));
+  }
+
+  function highlightSpans(text, spans) {
+    if (!spans || spans.length === 0) return escapeHtml(text);
+    // `spans` carry start/end offsets from the ORIGINAL text. When rendering
+    // against compressed text (which has different offsets), re-locate each
+    // span's literal text in `text` instead of trusting the original offsets.
+    const located = [];
+    for (const span of spans) {
+      const idx = text.indexOf(span.text);
+      if (idx === -1) continue;
+      located.push({ ...span, start: idx, end: idx + span.text.length });
+    }
+    if (located.length === 0) return escapeHtml(text);
+    const sorted = located.sort((a, b) => a.start - b.start);
+    let result = "";
+    let cursor = 0;
+    for (const span of sorted) {
+      if (span.start < cursor) continue;
+      result += escapeHtml(text.slice(cursor, span.start));
+      const cls = CATEGORY_CLASS[span.category] || "value";
+      result += `<mark class="${cls}" title="${escapeHtml(span.category)}${span.governs ? ' → ' + escapeHtml(span.governs) : ''}">${escapeHtml(text.slice(span.start, span.end))}</mark>`;
+      cursor = span.end;
+    }
+    result += escapeHtml(text.slice(cursor));
+    return result;
+  }
+
+  function highlightDroppedFlip(naiveText, flippedTerms) {
+    if (!flippedTerms || flippedTerms.length === 0) return escapeHtml(naiveText);
+    // flippedTerms are the clinical terms a dropped negation used to govern
+    // (e.g. "chest pain"). They now read as unqualified positive assertions
+    // in the naive output, so wrap the first case-insensitive occurrence of
+    // each one in a red "flipped" marker. Longer terms are tried first so a
+    // shorter term doesn't shadow one it's a substring of.
+    let html = escapeHtml(naiveText);
+    for (const term of flippedTerms) {
+      const words = term.trim().split(/\s+/).filter(Boolean);
+      if (words.length === 0) continue;
+      // Words may be separated by punctuation (e.g. "chest pain, shortness")
+      // in the rendered naive text even though the source phrase had none,
+      // so allow optional punctuation/whitespace between words instead of
+      // requiring an exact literal match.
+      const escapedWords = words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+      const pattern = new RegExp(escapedWords.join("[,;:\\s]+"), "i");
+      html = html.replace(pattern, (match) => `<mark class="flipped">${match}</mark>`);
+    }
+    return html;
+  }
+
+  async function runCompression() {
+    const text = inputText.value.trim();
+    if (!text) return;
+    const targetReduction = parseFloat(reductionInput.value);
+
+    compressBtn.disabled = true;
+    compressBtn.textContent = "Compressing...";
+
+    try {
+      const basePath = window.location.pathname.replace(/\/$/, "");
+      const [safeRes, naiveRes] = await Promise.all([
+        fetch(basePath + "/api/compress", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text, target_reduction: targetReduction }),
+        }),
+        fetch(basePath + "/api/naive", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text }),
+        }),
+      ]);
+
+      const safeData = await safeRes.json();
+      const naiveData = await naiveRes.json();
+
+      document.getElementById("panel-original").innerHTML = highlightSpans(text, safeData.protected_spans);
+      document.getElementById("original-count").textContent = `(${safeData.protected_spans.length} protected spans)`;
+
+      document.getElementById("panel-safe").innerHTML = highlightSpans(safeData.compressed_text, safeData.protected_spans);
+      document.getElementById("safe-badge").style.display = "inline-block";
+      document.getElementById("safe-badge").className = "badge " + (safeData.safety.all_passed ? "safe" : "danger");
+      document.getElementById("safe-badge").textContent = safeData.safety.all_passed ? "meaning preserved" : "reverted for safety";
+
+      const safetyReportEl = document.getElementById("safety-report");
+      let reportHtml = "";
+      for (const check of safeData.safety.checks) {
+        reportHtml += `<div class="check"><b class="${check.passed ? 'pass' : 'fail'}">${check.passed ? 'PASS' : 'FAIL'}</b> ${escapeHtml(check.name)}</div>`;
+      }
+      if (safeData.safety.reverted_spans.length > 0) {
+        reportHtml += `<div class="check">Reverted: ${escapeHtml(safeData.safety.reverted_spans.join(", "))}</div>`;
+      }
+      safetyReportEl.innerHTML = reportHtml;
+
+      document.getElementById("panel-naive").innerHTML = highlightDroppedFlip(naiveData.naive_text, naiveData.flipped_terms) +
+        (naiveData.dropped_tokens.length ? `<div style="margin-top:10px; color:var(--muted); font-size:12px;">Dropped: ${naiveData.dropped_tokens.map(escapeHtml).join(", ")}</div>` : "");
+
+      const naiveBadge = document.getElementById("naive-badge");
+      const naiveWarning = document.getElementById("naive-warning");
+      if (naiveData.meaning_reversed) {
+        naiveBadge.style.display = "inline-block";
+        naiveWarning.style.display = "block";
+      } else {
+        naiveBadge.style.display = "none";
+        naiveWarning.style.display = "none";
+      }
+
+      document.getElementById("tokens-bar").style.display = "flex";
+      document.getElementById("tok-original").textContent = safeData.original_tokens;
+      document.getElementById("tok-compressed").textContent = safeData.compressed_tokens;
+      document.getElementById("tok-reduction").textContent = safeData.reduction_pct;
+
+      const reductionNote = document.getElementById("reduction-note");
+      const targetPct = Math.round(targetReduction * 100);
+      const achievedPct = safeData.reduction_pct;
+      if (achievedPct + 5 < targetPct) {
+        reductionNote.style.display = "block";
+        reductionNote.textContent =
+          `Target was ${targetPct}% but only ${achievedPct}% was reached, by design: ` +
+          `clinicalcompress never sacrifices a protected span (negation, value, allergy, ` +
+          `laterality, or temporal marker) to hit a reduction target. On dense notes with ` +
+          `little redundancy, most of the achievable reduction comes from trimming ` +
+          `low-information connector words, not from cutting clinical content.`;
+      } else {
+        reductionNote.style.display = "none";
+        reductionNote.textContent = "";
+      }
+    } catch (err) {
+      document.getElementById("panel-safe").textContent = "Error: " + err.message;
+    } finally {
+      compressBtn.disabled = false;
+      compressBtn.textContent = "Compress";
+    }
+  }
+
+  compressBtn.addEventListener("click", runCompression);
+</script>
+</body>
+</html>

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>clinicalcompress — compress clinical text without flipping a negation</title>
+<meta name="description" content="A Python library that compresses clinical text while guaranteeing negations, values, allergies, laterality, and temporal markers are never lost or reversed." />
+<style>
+  :root {
+    --bg: #0b0e0d;
+    --bg-panel: #121613;
+    --border: #26302a;
+    --text: #d7e0da;
+    --muted: #7c8a82;
+    --green: #3ddc84;
+    --red: #ff5c5c;
+    --accent: #62d6b0;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "SF Mono", "Fira Code", Menlo, Consolas, monospace;
+    line-height: 1.6;
+  }
+  a { color: var(--accent); }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 0 24px; }
+  header.hero { padding: 96px 0 56px; border-bottom: 1px solid var(--border); }
+  .tag {
+    display: inline-block;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 4px 10px;
+    margin-bottom: 20px;
+  }
+  h1 { font-size: 40px; line-height: 1.2; margin: 0 0 20px; color: #fff; }
+  h1 .neg { color: var(--red); }
+  p.lede { color: var(--muted); font-size: 16px; max-width: 640px; }
+  .flip-demo {
+    margin-top: 36px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    padding: 20px 24px;
+    font-size: 14px;
+  }
+  .flip-demo .before { color: var(--muted); }
+  .flip-demo .after { color: var(--red); font-weight: bold; }
+  .flip-demo .arrow { color: var(--muted); margin: 0 10px; }
+  section { padding: 56px 0; border-bottom: 1px solid var(--border); }
+  section h2 { color: #fff; font-size: 22px; margin-bottom: 20px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+  .card { background: var(--bg-panel); border: 1px solid var(--border); padding: 18px; }
+  .card .k { color: var(--accent); font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+  .card p { margin: 0; color: var(--muted); font-size: 13.5px; }
+  pre {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    padding: 16px;
+    overflow-x: auto;
+    font-size: 13.5px;
+  }
+  .checks { list-style: none; padding: 0; margin: 0; }
+  .checks li { padding: 6px 0; color: var(--muted); font-size: 14px; }
+  .checks li b { color: var(--green); }
+  .disclaimer { color: var(--muted); font-size: 12.5px; border-top: 1px solid var(--border); padding-top: 24px; }
+  footer { padding: 40px 0 80px; color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <span class="tag">Open source · Apache 2.0</span>
+    <h1>Compress clinical text without flipping<br />a <span class="neg">negation</span>.</h1>
+    <p class="lede">
+      clinicalcompress protects negations, values, allergies, laterality, and temporal
+      markers before compressing anything else — then deterministically verifies
+      nothing clinically load-bearing was lost. No API key required.
+    </p>
+
+    <div class="flip-demo">
+      <div class="before">"Patient <b>denies</b> chest pain."</div>
+      <div><span class="arrow">→ naive compressor drops "denies" →</span></div>
+      <div class="after">"Patient chest pain."</div>
+    </div>
+  </header>
+
+  <section>
+    <h2>The problem</h2>
+    <p>
+      Generic text compressors and summarizers routinely strip short, low-frequency
+      words to save tokens — words like "no", "not", and "denies". In clinical text,
+      those words are not filler. Dropping one can turn an absent symptom into a
+      present one, silently, with no error and no warning.
+    </p>
+  </section>
+
+  <section>
+    <h2>How protection works</h2>
+    <div class="grid">
+      <div class="card"><div class="k">Negation</div><p>"denies", "no", "ruled out", "without", "negative for"</p></div>
+      <div class="card"><div class="k">Value</div><p>"BP 120/80", "HR 88 bpm", "10 mg", lab values</p></div>
+      <div class="card"><div class="k">Allergy</div><p>"Allergic to penicillin", "NKDA"</p></div>
+      <div class="card"><div class="k">Laterality</div><p>"left knee", "bilateral", "R) shoulder"</p></div>
+      <div class="card"><div class="k">Temporal</div><p>"history of", "chronic", "resolved", "active"</p></div>
+    </div>
+    <p style="color:var(--muted); margin-top:24px; font-size:14px;">
+      Every span in these categories is located <em>before</em> compression runs and
+      passes through untouched — compression only ever removes redundancy from the
+      text around them.
+    </p>
+  </section>
+
+  <section>
+    <h2>The verification guarantee</h2>
+    <ul class="checks">
+      <li><b>negation_preserved</b> — every negation cue survives, still governing the same term</li>
+      <li><b>values_intact</b> — every numeric value and unit is unchanged</li>
+      <li><b>allergies_preserved</b> — every allergy statement is present</li>
+      <li><b>laterality_preserved</b> — left/right/bilateral markers survive with their referent</li>
+      <li><b>no_meaning_reversal</b> — a negated term can never appear as an unqualified positive</li>
+    </ul>
+    <p style="color:var(--muted); margin-top:16px; font-size:14px;">
+      If any check fails, the strict orchestrator reverts to source text and
+      re-verifies. With <code>strict=True</code> (the default), the result can never
+      contain a lost negation or a reversed clinical meaning.
+    </p>
+  </section>
+
+  <section>
+    <h2>Install</h2>
+    <pre>pip install clinicalcompress</pre>
+    <pre>from clinicalcompress import compress
+
+result = compress("Patient denies chest pain. No history of MI. BP 120/80.")
+print(result.compressed_text)
+print(result.safety.all_passed)</pre>
+  </section>
+
+  <div class="disclaimer">
+    clinicalcompress is a text-compression utility, not a medical device. It is not
+    clinically validated and must not be used as the sole basis for clinical
+    decisions. Always review compressed output before use.
+  </div>
+
+  <footer>
+    <a href="https://versionone.health">versionone.health</a>
+    &nbsp;·&nbsp;
+    <a href="https://github.com/VersionOne-Health/clinicalcompress">GitHub repository</a>
+  </footer>
+</div>
+</body>
+</html>
