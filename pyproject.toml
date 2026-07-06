@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "clinicalcompress"
-version = "0.1.0"
+version = "0.1.1"
 description = "Compress clinical text without losing (or flipping) clinical meaning."
 readme = "README.md"
 license = { text = "Apache-2.0" }
