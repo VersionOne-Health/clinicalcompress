@@ -1,0 +1,42 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install package with dev extras
+        run: pip install -e ".[dev]"
+
+      - name: Lint with ruff
+        run: ruff check clinicalcompress tests examples
+
+      - name: Run tests
+        run: pytest --cov=clinicalcompress --cov-report=term-missing
+
+      - name: No-PHI guard
+        run: |
+          if grep -RniE '[0-9]{3}-[0-9]{2}-[0-9]{4}' examples/sample_notes/ ; then
+            echo "Possible SSN-like pattern found in sample notes." >&2
+            exit 1
+          fi
+          if grep -RniE '\b(real patient|actual patient|production data)\b' examples/sample_notes/ ; then
+            echo "Sample notes must not claim to contain real patient data." >&2
+            exit 1
+          fi
+          echo "No-PHI guard passed."
